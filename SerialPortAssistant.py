@@ -4,9 +4,9 @@ import serial.tools.list_ports
 import time
 from datetime import datetime
 
-from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                               QHBoxLayout, QComboBox, QLabel, QPushButton, 
-                               QPlainTextEdit, QCheckBox, QLineEdit, QFileDialog, 
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
+                               QHBoxLayout, QComboBox, QLabel, QPushButton,
+                               QPlainTextEdit, QCheckBox, QLineEdit, QFileDialog,
                                QProgressBar, QMessageBox, QGroupBox, QSpinBox)
 from PySide6.QtCore import QThread, Signal, Qt
 from PySide6.QtGui import QTextCursor, QTextCharFormat, QColor
@@ -22,14 +22,14 @@ def format_hexdump(data, start_offset=0):
         chunk = data[i:i+16]
         # 1. 偏移量 (8位16进制)
         offset_str = f"{start_offset + i:08X}"
-        
+
         # 2. 十六进制部分 (每字节2位，不够16字节补空格)
         hex_str = ' '.join(f"{b:02X}" for b in chunk)
         padding = "   " * (16 - len(chunk))
-        
+
         # 3. ASCII 部分 (不可见字符用点代替)
         ascii_str = ''.join(chr(b) if 32 <= b < 127 else '.' for b in chunk)
-        
+
         # 组合: 偏移量: Hex部分 | ASCII
         line = f"{offset_str}: {hex_str}{padding}  |{ascii_str}|"
         result.append(line)
@@ -55,10 +55,10 @@ class SerialWorker(QThread):
 
     def run(self):
         try:
-            parity_dict = {'None': serial.PARITY_NONE, 'Even': serial.PARITY_EVEN, 
+            parity_dict = {'None': serial.PARITY_NONE, 'Even': serial.PARITY_EVEN,
                            'Odd': serial.PARITY_ODD, 'Mark': serial.PARITY_MARK, 'Space': serial.PARITY_SPACE}
             stop_dict = {'1': serial.STOPBITS_ONE, '1.5': serial.STOPBITS_ONE_POINT_FIVE, '2': serial.STOPBITS_TWO}
-            
+
             xonxoff = False
             rtscts = False
             if self.flow_control == 'XON/XOFF':
@@ -76,7 +76,7 @@ class SerialWorker(QThread):
                 rtscts=rtscts,
                 timeout=0.1
             )
-            
+
             while self.is_running and self.serial_port.is_open:
                 if self.serial_port.in_waiting:
                     data = self.serial_port.read(self.serial_port.in_waiting)
@@ -94,7 +94,7 @@ class SerialWorker(QThread):
     def stop(self):
         self.is_running = False
         self.wait()
-    
+
     def send_data(self, data):
         if self.serial_port and self.serial_port.is_open:
             self.serial_port.write(data)
@@ -118,10 +118,10 @@ class FileSender(QThread):
         try:
             with open(self.file_path, 'rb') as f:
                 data = f.read()
-            
+
             total_len = len(data)
             sent_len = 0
-            chunk_size = 1024 
+            chunk_size = 1024
             bytes_per_sec = self.baud_rate / 10.0
             delay_per_chunk = chunk_size / bytes_per_sec
 
@@ -132,7 +132,7 @@ class FileSender(QThread):
                 self.serial_obj.write(chunk)
                 sent_len += len(chunk)
                 self.progress_update.emit(sent_len, total_len)
-                
+
                 if delay_per_chunk > 0.001:
                     time.sleep(delay_per_chunk)
                 else:
@@ -178,12 +178,12 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Serial Port Assistant")
         self.resize(1100, 750)
 
-        self.raw_data_buffer = bytearray() 
-        
+        self.raw_data_buffer = bytearray()
+
         self.serial_thread = None
         self.tcp_server = None
         self.file_sender = None
-        
+
         self.search_matches = []
         self.current_match_index = -1
 
@@ -199,17 +199,17 @@ class MainWindow(QMainWindow):
         settings_layout = QHBoxLayout()
         grp_serial = QGroupBox("串口设置")
         serial_layout = QHBoxLayout(grp_serial)
-        
+
         self.combo_port = QComboBox()
         self.combo_port.currentIndexChanged.connect(self.combo_port_tooltip)
-        
-        btn_refresh = QPushButton("刷新")
-        btn_refresh.clicked.connect(self.refresh_ports)
-        
+
+        self.btn_refresh = QPushButton("刷新")
+        self.btn_refresh.clicked.connect(self.refresh_ports)
+
         self.combo_baud = QComboBox()
         self.combo_baud.addItems([str(b) for b in [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600]])
         self.combo_baud.setCurrentText("115200")
-        
+
         self.combo_data = QComboBox()
         self.combo_data.addItems(['5','6','7','8'])
         self.combo_data.setCurrentText('8')
@@ -220,14 +220,14 @@ class MainWindow(QMainWindow):
         self.combo_parity.addItems(['None','Even','Odd','Mark','Space'])
         self.combo_flow = QComboBox()
         self.combo_flow.addItems(['None','RTS/CTS','XON/XOFF'])
-        
+
         self.btn_open = QPushButton("打开串口")
         self.btn_open.setCheckable(True)
         self.btn_open.clicked.connect(self.toggle_serial)
 
         serial_layout.addWidget(QLabel("端口:"))
         serial_layout.addWidget(self.combo_port)
-        serial_layout.addWidget(btn_refresh)
+        serial_layout.addWidget(self.btn_refresh)
         serial_layout.addWidget(QLabel("波特率:"))
         serial_layout.addWidget(self.combo_baud)
         serial_layout.addWidget(QLabel("数据:"))
@@ -261,13 +261,13 @@ class MainWindow(QMainWindow):
         self.chk_hex_display = QCheckBox("HEX显示 (Hexdump)")
         self.chk_hex_display.stateChanged.connect(self.update_display_mode)
         self.chk_timestamp = QCheckBox("时间戳")
-        
+
         btn_clear = QPushButton("清空显示")
         btn_clear.clicked.connect(self.clear_display)
-        
+
         btn_save = QPushButton("保存数据")
         btn_save.clicked.connect(self.save_data)
-        
+
         self.txt_search = QLineEdit()
         self.txt_search.setPlaceholderText("搜索内容...")
         self.chk_search_hex = QCheckBox("HEX搜索")
@@ -277,7 +277,7 @@ class MainWindow(QMainWindow):
         btn_prev.clicked.connect(lambda: self.navigate_search(-1))
         btn_next = QPushButton(">")
         btn_next.clicked.connect(lambda: self.navigate_search(1))
-        
+
         btn_clear_search = QPushButton("清除搜索")
         btn_clear_search.clicked.connect(self.clear_search_highlight)
         self.lbl_search_idx = QLabel("0/0")
@@ -301,9 +301,9 @@ class MainWindow(QMainWindow):
         self.txt_receive = QPlainTextEdit()
         self.txt_receive.setReadOnly(True)
         # 移除 BlockCount 限制，允许无限显示（直到内存耗尽）
-        # self.txt_receive.setMaximumBlockCount(5000) 
+        # self.txt_receive.setMaximumBlockCount(5000)
         font = self.txt_receive.font()
-        font.setFamily("Consolas") 
+        font.setFamily("Consolas")
         font.setPointSize(10)
         self.txt_receive.setFont(font)
         self.txt_receive.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
@@ -341,7 +341,7 @@ class MainWindow(QMainWindow):
         send_layout.addLayout(h_input)
         send_layout.addLayout(h_file)
         main_layout.addWidget(send_group)
-        
+
         self.status_bar = self.statusBar()
         self.status_bar.showMessage("就绪")
 
@@ -359,7 +359,7 @@ class MainWindow(QMainWindow):
             self.combo_port.addItem(p.device, userData=p.device)
             display_name = f"{p.device} - {p.description}"
             self.combo_port.setItemData(self.combo_port.count() - 1, display_name, Qt.ItemDataRole.ToolTipRole)
-        
+
         self.combo_port_tooltip(0)
 
     def toggle_serial(self):
@@ -388,6 +388,7 @@ class MainWindow(QMainWindow):
     def disable_settings(self, disable):
         self.combo_baud.setDisabled(disable)
         self.combo_port.setDisabled(disable)
+        self.btn_refresh.setDisabled(disable)
 
     def handle_serial_error(self, msg):
         QMessageBox.critical(self, "串口错误", msg, QMessageBox.StandardButton.Ok, QMessageBox.StandardButton.NoButton)
@@ -396,10 +397,10 @@ class MainWindow(QMainWindow):
 
     def handle_data_received(self, data):
         current_offset = len(self.raw_data_buffer)
-        
+
         # 1. 核心：存入原始缓冲
         self.raw_data_buffer.extend(data)
-        
+
         # 2. TCP 转发
         if self.tcp_server:
             self.tcp_server.broadcast(data)
@@ -409,7 +410,7 @@ class MainWindow(QMainWindow):
 
     def append_to_display(self, data, offset_start=0):
         self.txt_receive.moveCursor(QTextCursor.MoveOperation.End)
-        
+
         text_to_show = ""
         timestamp = ""
         if self.chk_timestamp.isChecked():
@@ -438,9 +439,9 @@ class MainWindow(QMainWindow):
     def update_display_mode(self):
         # 切换显示模式，重新渲染
         self.txt_receive.clear()
-        
+
         data_to_render = self.raw_data_buffer
-            
+
         if not data_to_render:
             return
 
@@ -456,16 +457,16 @@ class MainWindow(QMainWindow):
         if not self.raw_data_buffer:
             QMessageBox.warning(self, "提示", "没有数据可保存", QMessageBox.StandardButton.Ok, QMessageBox.StandardButton.NoButton)
             return
-        
+
         if self.chk_hex_display.isChecked():
             default_filter = "Binary Files (*.bin);;Text Files (*.txt);;All Files (*)"
             default_ext = "bin"
         else:
             default_filter = "Text Files (*.txt);;Binary Files (*.bin);;All Files (*)"
             default_ext = "txt"
-            
+
         filename, filter_used = QFileDialog.getSaveFileName(self, "保存数据", f"saved_data.{default_ext}", default_filter)
-        
+
         if filename:
             try:
                 with open(filename, 'wb') as f:
@@ -529,7 +530,7 @@ class MainWindow(QMainWindow):
             self.btn_stop_file.setEnabled(False)
 
     def toggle_tcp(self, state):
-        if state == 2: 
+        if state == 2:
             try:
                 self.tcp_server = TcpForwarder(self.spin_tcp_port.value())
                 self.status_bar.showMessage(f"TCP转发服务启动于端口 {self.spin_tcp_port.value()}")
